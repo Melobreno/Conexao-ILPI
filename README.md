@@ -13,6 +13,7 @@ Permite consultar necessidades de doação, realizar doações via PIX, cadastra
 | Banco      | MySQL 8+                                        |
 | Frontend   | Angular 17 (Standalone Components, RxJS)        |
 | Estilo     | Tailwind CSS 3                                  |
+| Infra      | Render (Backend) + GitHub Pages (Frontend)      |
 
 ---
 
@@ -20,30 +21,70 @@ Permite consultar necessidades de doação, realizar doações via PIX, cadastra
 
 ```
 Conexao-ILPI/
-├── backend/          # Spring Boot Maven project
-├── frontend/         # Angular SPA
-└── db/
-    ├── schema.sql    # DDL – criar tabelas
-    └── seed.sql      # Dados de exemplo
+├── backend/                  # Spring Boot Maven project
+├── frontend/                 # Angular SPA
+├── .github/workflows/
+│   ├── backend-deploy.yml   # CI/CD: build & deploy backend to Render
+│   └── frontend-deploy.yml  # CI/CD: build & deploy frontend to GitHub Pages
+└── .gitignore               # Protege segredos e artifacts
 ```
 
 ---
 
-## Como rodar
+## Deployment & CI/CD
+
+### Frontend (GitHub Pages)
+O **frontend é deployado automaticamente via GitHub Actions** sempre que você faz push na branch `main` dentro da pasta `frontend/`:
+
+1. **Workflow:** `.github/workflows/frontend-deploy.yml`
+   - Instala dependências (`npm ci`)
+   - Gera `environment.prod.ts` com a URL da API (via secret `PROD_API_URL`)
+   - Build: `ng build --configuration production --base-href /Conexao-ILPI/`
+   - Deploy automático para GitHub Pages
+
+2. **Setup (one-time):**
+   - Repository → Settings → Pages → Source: `GitHub Actions`
+   - Repository → Settings → Secrets → Actions → Adicionar `PROD_API_URL` = `https://seu-render-backend.onrender.com/api`
+
+### Backend (Render + Railway MySQL)
+O **backend é deployado automaticamente via GitHub Actions** sempre que você faz push na branch `main` dentro da pasta `backend/`:
+
+1. **Workflow:** `.github/workflows/backend-deploy.yml`
+   - Build JAR com Maven
+   - Cria imagem Docker (multi-stage, JRE Alpine)
+   - Push para GitHub Container Registry (ghcr.io)
+   - Aciona Render via Deploy Hook
+
+2. **Setup (one-time):**
+   - MySQL hospedado no [Railway.app](https://railway.app) (plano gratuito)
+   - Backend hospedado no [Render](https://render.com) (plano gratuito) — Web Service com Docker
+   - Adicione as variáveis de ambiente no Render:
+     | Variável | Valor |
+     |---|---|
+     | `DATASOURCE_URL` | `jdbc:mysql://user:pass@host:port/railway?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true` |
+     | `DATASOURCE_USER` | usuário do Railway |
+     | `DATASOURCE_PASS` | senha do Railway |
+     | `SETUP_SECRET_KEY` | chave forte para criar admin (`openssl rand -hex 32`) |
+   - Repository → Settings → Secrets → Actions → Adicionar `RENDER_DEPLOY_HOOK_URL` (copiada do Render → Settings → Deploy Hook)
+
+---
+
+## Como rodar localmente
 
 ### 1. Banco de dados
 
 ```sql
 -- No MySQL 8+
-source db/schema.sql
-source db/seed.sql
+CREATE DATABASE conexao_ilpi CHARACTER SET utf8mb4;
+source backend/src/main/resources/schema.sql
+source backend/src/main/resources/data.sql
 ```
 
 ### 2. Backend
 
 ```bash
 cd backend
-# Ajuste usuário/senha em src/main/resources/application.properties
+# Ajuste credenciais em src/main/resources/application.properties
 mvn spring-boot:run
 # API disponível em http://localhost:8080
 ```
@@ -59,6 +100,25 @@ npm start
 
 ---
 
+## Criar um novo administrador
+
+Após o primeiro deploy, chamar:
+
+```bash
+curl -X POST https://seu-backend.onrender.com/api/setup/admin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "setupKey": "sua-SETUP_SECRET_KEY",
+    "name": "Seu Nome",
+    "email": "admin@exemplo.com",
+    "password": "SenhaForte@123"
+  }'
+```
+
+Acesse depois em `/admin` para gerenciar necessidades de doação e visualizar contatos recebidos.
+
+---
+
 ## Endpoints da API
 
 | Método | Rota                        | Descrição                              |
@@ -71,6 +131,7 @@ npm start
 | GET    | `/api/contacts`             | Lista contatos (`?type=VOLUNTEER`)     |
 | GET    | `/api/contacts/{id}`        | Busca contato por ID                   |
 | POST   | `/api/contacts`             | Envia formulário de voluntário/apoio   |
+| POST   | `/api/setup/admin`          | Criar administrador (protegido por `SETUP_SECRET_KEY`) |
 
 ---
 

@@ -20,7 +20,7 @@ name: Frontend — Build & Deploy
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-deploy.yml'
