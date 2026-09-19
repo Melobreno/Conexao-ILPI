@@ -59,17 +59,13 @@ jobs:
         run: npm ci
 
       # ── 4. Write production environment file ───────────────
-      # Injects the real API URL from GitHub Secrets so it is
-      # never committed to the repository.
+      # Uses printf to safely inject the secret without heredoc formatting issues.
       - name: Write environment.prod.ts
         working-directory: frontend
+        env:
+          PROD_API_URL: ${{ secrets.PROD_API_URL }}
         run: |
-          cat > src/environments/environment.prod.ts << 'EOF'
-          export const environment = {
-            production: true,
-            apiUrl: '${{ secrets.PROD_API_URL }}',
-          };
-          EOF
+          printf 'export const environment = {\n  production: true,\n  apiUrl: "%s",\n};\n' "$PROD_API_URL" > src/environments/environment.prod.ts
 
       # ── 5. Build for production ────────────────────────────
       # --base-href must match your GitHub Pages sub-path.
