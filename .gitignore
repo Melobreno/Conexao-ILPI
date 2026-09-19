@@ -43,4 +43,4 @@ frontend/.sass-cache/
 frontend/coverage/
 
 # Keep environment files but never the production one with real URLs
-frontend/src/environments/environment.prod.ts
+# environment.prod.ts is committed — URL is not a secret
