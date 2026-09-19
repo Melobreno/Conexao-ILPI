@@ -1,0 +1,93 @@
+# ============================================================
+# CONEXAO ILPI — Frontend CI/CD
+# Builds the Angular SPA and deploys it to GitHub Pages.
+#
+# Setup steps (one-time, in GitHub):
+#   1. Repository → Settings → Pages
+#      Source: "GitHub Actions"
+#   2. Set the correct production API URL in the secret below:
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   PROD_API_URL  → https://your-render-service.onrender.com/api
+#
+# The repo name is used as the Angular base-href.
+# If your Pages URL is https://<user>.github.io/<repo>/, set:
+#   base-href: /<repo>/
+# ============================================================
+
+name: Frontend — Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build Angular + Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Node ─────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # ── 3. Install dependencies ────────────────────────────
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # ── 4. Write production environment file ───────────────
+      # Injects the real API URL from GitHub Secrets so it is
+      # never committed to the repository.
+      - name: Write environment.prod.ts
+        working-directory: frontend
+        run: |
+          cat > src/environments/environment.prod.ts << 'EOF'
+          export const environment = {
+            production: true,
+            apiUrl: '${{ secrets.PROD_API_URL }}',
+          };
+          EOF
+
+      # ── 5. Build for production ────────────────────────────
+      # --base-href must match your GitHub Pages sub-path.
+      # e.g. for https://username.github.io/Conexao-ILPI/ use /Conexao-ILPI/
+      - name: Build Angular
+        working-directory: frontend
+        run: |
+          npx ng build \
+            --configuration production \
+            --base-href /Conexao-ILPI/
+
+      # ── 6. Upload Pages artifact ───────────────────────────
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist/conexao-ilpi-frontend/browser
+
+      # ── 7. Deploy to GitHub Pages ──────────────────────────
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

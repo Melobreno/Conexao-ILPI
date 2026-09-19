@@ -1,0 +1,46 @@
+# ============================================================
+# CONEXAO ILPI — Root .gitignore
+# ============================================================
+
+# ── Environment / secrets ───────────────────────────────────
+.env
+.env.*
+*.env
+!.env.example
+
+# ── OS ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDEs ────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+*.suo
+*.user
+*.swp
+*.swo
+
+# ============================================================
+# BACKEND — Maven / Spring Boot
+# ============================================================
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/*.jar
+backend/*.war
+
+# Spring local override (never commit real credentials)
+backend/src/main/resources/application-local.properties
+
+# ============================================================
+# FRONTEND — Angular / Node
+# ============================================================
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.sass-cache/
+frontend/coverage/
+
+# Keep environment files but never the production one with real URLs
+frontend/src/environments/environment.prod.ts
